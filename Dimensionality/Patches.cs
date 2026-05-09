@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
+using Elements.Core;
 using FrooxEngine;
 using FrooxEngine.UIX;
 using HarmonyLib;
@@ -16,7 +17,7 @@ namespace Dimensionality;
 public static class Patches
 {
     [HarmonyPatch(typeof(RenderManager), "ComputeRenderUpdate"), HarmonyPostfix]
-    public static void ChangeStagedRenderUpdate(RenderManager __instance, RenderSpaceUpdate ____stagedRenderSpaceUpdate) => DimensionManager.UpdateWorld(__instance.World, ____stagedRenderSpaceUpdate);
+    public static void RenderManagerComputeRenderUpdate(RenderManager __instance) => DimensionManager.UpdateWorld(__instance.World, __instance._stagedRenderSpaceUpdate);
 
     //! Moved from FrooxEngineRunner.UpdateHeadOutput() -> RenderManager.ComputeRenderUpdate()
     //
@@ -34,33 +35,32 @@ public static class Patches
 
     [HarmonyPatch(typeof(InteractionLaser), "UpdateLaser"), HarmonyTranspiler]
     private static IEnumerable<CodeInstruction> InteractionLaserUpdateLaser(IEnumerable<CodeInstruction> instructions) => ILHelper.EqualityAlsoCheckForDimensionTranspiler(instructions, 0);
-    
+
     [HarmonyPatch(typeof(InteractionHandler), "OnInputUpdate"), HarmonyTranspiler]
     private static IEnumerable<CodeInstruction> InteractionHandlerOnInputUpdate(IEnumerable<CodeInstruction> instructions) => ILHelper.EqualityAlsoCheckForDimensionTranspiler(instructions);
 
     [HarmonyPatch(typeof(InteractionHandler), "OpenContextMenu"), HarmonyTranspiler]
     private static IEnumerable<CodeInstruction> InteractionHandlerOpenContextMenu(IEnumerable<CodeInstruction> instructions) => ILHelper.EqualityAlsoCheckForDimensionTranspiler(instructions);
+
     [HarmonyPatch(typeof(InteractionHandler), "TryOpenContextMenu"), HarmonyTranspiler]
     private static IEnumerable<CodeInstruction> InteractionHandlerTryOpenContextMenu(IEnumerable<CodeInstruction> instructions) => ILHelper.EqualityAlsoCheckForDimensionTranspiler(instructions);
 
-    // [HarmonyPatch(typeof(PointerInteractionController), "OnAttach")]
-    // [HarmonyTranspiler]
+    [HarmonyPatch(typeof(InteractionHandler), "UpdateUserspaceToolOffsets"), HarmonyTranspiler]
+    private static IEnumerable<CodeInstruction> InteractionHandlerUpdateUserspaceToolOffsets(IEnumerable<CodeInstruction> instructions) => ILHelper.EqualityAlsoCheckForDimensionTranspiler(instructions);
+
+    // [HarmonyPatch(typeof(PointerInteractionController), "OnAttach"), HarmonyTranspiler]
     // private static IEnumerable<CodeInstruction> PointerInteractionControllerOnAttach(IEnumerable<CodeInstruction> instructions) => ILHelper.ShouldSkipTranspiler(instructions);
     //
-    // [HarmonyPatch(typeof(PointerInteractionController), "UpdatePointer")]
-    // [HarmonyTranspiler]
+    // [HarmonyPatch(typeof(PointerInteractionController), "UpdatePointer"), HarmonyTranspiler]
     // private static IEnumerable<CodeInstruction> PointerInteractionControllerUpdatePointer(IEnumerable<CodeInstruction> instructions) => ILHelper.ShouldSkipTranspiler(instructions);
     //
-    // [HarmonyPatch(typeof(PointerInteractionController), "GetTouchable")]
-    // [HarmonyTranspiler]
+    // [HarmonyPatch(typeof(PointerInteractionController), "GetTouchable"), HarmonyTranspiler]
     // private static IEnumerable<CodeInstruction> PointerInteractionControllerGetTouchable(IEnumerable<CodeInstruction> instructions) => ILHelper.EqualityAlsoCheckForDimensionTranspiler(instructions);
     //
-    // [HarmonyPatch(typeof(PointerInteractionController), "BeforeInputUpdate")]
-    // [HarmonyTranspiler]
+    // [HarmonyPatch(typeof(PointerInteractionController), "BeforeInputUpdate"), HarmonyTranspiler]
     // private static IEnumerable<CodeInstruction> PointerInteractionControllerBeforeInputUpdate(IEnumerable<CodeInstruction> instructions) => ILHelper.EqualityAlsoCheckForDimensionTranspiler(instructions);
     //
-    // [HarmonyPatch(typeof(OverlayLayer), "UserspaceOnly", MethodType.Getter)]
-    // [HarmonyTranspiler]
+    // [HarmonyPatch(typeof(OverlayLayer), "UserspaceOnly", MethodType.Getter), HarmonyTranspiler]
     // private static bool OverlayLayerUserspaceOnly(ref bool __result)
     // {
     //     __result = false;
@@ -100,6 +100,15 @@ public static class Patches
         if (__instance.Side.Value.IsDimensionHoldingObjects())
         {
             __result |= !__instance.World.IsDimension();
+        }
+    }
+
+    [HarmonyPatch(typeof(InteractionHandler), nameof(InteractionHandler.MaxLaserDistance), MethodType.Getter), HarmonyPostfix]
+    public static void InteractionHandlerMaxLaserDistance(InteractionHandler __instance, ref float __result)
+    {
+        if (__instance.World.IsDimension())
+        {
+            __result = Userspace.GetControllerData(__instance.Side.Value).distance;
         }
     }
 

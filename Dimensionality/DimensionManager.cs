@@ -21,8 +21,6 @@ public static class DimensionManager
     private static ITool? _leftUserTool;
     private static ITool? _rightUserTool;
 
-    private static CancellationTokenSource? _cancellationTokenSource;
-
     private static void SetupWorld(World world)
     {
         CommonAvatarBuilder builder = world.AddSlot("Avatar Builder").AttachComponent<CommonAvatarBuilder>();
@@ -35,7 +33,7 @@ public static class DimensionManager
         // builder.SetupNameBadges.Value = false;
         // builder.SetupIconBadges.Value = false;
 
-        builder.SetupItemShelves.Value = Engine.Current.InputInterface.HeadOutputDevice.IsVR();
+        builder.SetupItemShelves.Value = world.InputInterface.HeadOutputDevice.IsVR();
 
         Slot userSlot = world.AddSlot("UserRoot", false);
         UserRoot userRoot = userSlot.AttachComponent<UserRoot>();
@@ -108,25 +106,9 @@ public static class DimensionManager
 
                 inspector.PositionInFrontOfUser(float3.Backward, float3.Forward * 2);
             });
-
-            // w.RunSynchronously(() =>
-            // {
-            //     UpdatePosition(world);
-            // });
         }, world));
 
         Engine.Current.WorldManager.OverlayWorld(world);
-
-        _cancellationTokenSource = new CancellationTokenSource();
-        // _ = world.Coroutines.StartTask(async w =>
-        // {
-        //     while (!_cancellationTokenSource.IsCancellationRequested)
-        //     {
-        //         await new NextUpdate();
-        //
-        //         UpdatePosition(w);
-        //     }
-        // }, world);
 
         World = world;
     }
@@ -135,7 +117,7 @@ public static class DimensionManager
     // Copy the User's Position and scale to the Dimension
     internal static void UpdateWorld(World world, RenderSpaceUpdate spaceUpdate)
     {
-        if (DimensionManager.World == null || !world.IsDimension()) return;
+        if (!world.IsDimension()) return;
 
         if (spaceUpdate.isActive)
         {
@@ -147,6 +129,12 @@ public static class DimensionManager
             // transform2.position = transform1.position;
             // transform2.rotation = transform1.rotation;
             // transform2.localScale = transform1.localScale;
+
+            // Overlay world force this on Unity's side
+            //
+            // renderspace.obj.position = headoutput.position - spaceUpdate.rootTransform.position
+            // renderspace.obj.rotation = headoutput.rotation * spaceUpdate.rootTransform.rotation
+            // renderspace.obj.localScale = headoutput.localScale <- this is the fucking pain in the ass, it works fine in worlds which cause this to be 1,1,1
 
             spaceUpdate.rootTransform = focusedWorld.LocalUserTransform;
 
@@ -179,10 +167,7 @@ public static class DimensionManager
     {
         if (World == null)
             return;
-
-        if (_cancellationTokenSource != null)
-            await _cancellationTokenSource.CancelAsync();
-
+        
         if (World.IsDisposed)
         {
             ClearWorldReferences();
@@ -198,25 +183,14 @@ public static class DimensionManager
         World = null;
         _leftHandler = null;
         _rightHandler = null;
-        _cancellationTokenSource?.Dispose();
     }
 
-    extension(World w)
+    public static bool IsDimension(this World w)
     {
-        public bool IsDimension()
-        {
-            if (World == null)
-                return false;
+        if (World == null)
+            return false;
 
-            return World == w;
-        }
-        public bool IsNotDimension()
-        {
-            if (World == null)
-                return true;
-
-            return World != w;
-        }
+        return World == w;
     }
 
 #pragma warning disable CS0472 // The result of the expression is always the same since a value of this type is never equal to 'null'
@@ -232,6 +206,7 @@ public static class DimensionManager
             };
             return handler!;
         }
+        public InteractionHandler GetUserspaceHandler() => Userspace.UserspaceWorld.RootSlot.GetComponentInChildren<InteractionHandler>(x => x.Side.Value == side);
         public bool IsDimensionLaserActive()
         {
             if (side == null || World == null)
