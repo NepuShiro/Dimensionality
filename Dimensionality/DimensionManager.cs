@@ -135,7 +135,7 @@ public static class DimensionManager
     // Copy the User's Position and scale to the Dimension
     internal static void UpdateWorld(World world, RenderSpaceUpdate spaceUpdate)
     {
-        if (DimensionManager.World == null || DimensionManager.World == world) return;
+        if (DimensionManager.World == null || !world.IsDimension()) return;
 
         if (spaceUpdate.isActive)
         {
@@ -200,7 +200,7 @@ public static class DimensionManager
         _rightHandler = null;
         _cancellationTokenSource?.Dispose();
     }
-    
+
     extension(World w)
     {
         public bool IsDimension()
@@ -219,37 +219,40 @@ public static class DimensionManager
         }
     }
 
+#pragma warning disable CS0472 // The result of the expression is always the same since a value of this type is never equal to 'null'
     extension(Chirality side)
     {
-        private InteractionHandler? Handler()
+        private InteractionHandler Handler()
         {
-            return side switch
+            InteractionHandler? handler = side switch
             {
                 Chirality.Left  => _leftHandler,
                 Chirality.Right => _rightHandler,
                 _               => throw new ArgumentOutOfRangeException(nameof(side), side, null)
             };
+            return handler!;
         }
         public bool IsDimensionLaserActive()
         {
-            if (World == null)
+            if (side == null || World == null)
                 return false;
 
-            return side.Handler()?.Laser.LaserActive ?? false;
+            return side.Handler().Laser.LaserActive;
         }
         public bool HasDimensionLaserHitTarget()
         {
-            if (World == null)
+            if (side == null || World == null)
                 return false;
 
-            return side.Handler()?.Laser.CurrentHit != null;
+            return side.Handler().Laser.CurrentHit != null;
         }
         public bool IsDimensionHoldingObjects()
         {
-            if (World == null)
+            if (side == null || World == null)
                 return false;
 
-            return side.Handler()?.IsHoldingObjects ?? false;
+            return side.Handler().IsHoldingObjects;
         }
     }
+#pragma warning restore CS0472 // The result of the expression is always the same since a value of this type is never equal to 'null'
 }

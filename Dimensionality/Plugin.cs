@@ -34,11 +34,6 @@ public class Plugin : BasePlugin
         Log.LogInfo($"Plugin {PluginMetadata.GUID} is loaded!");
     }
 
-    public static void LogFunny(object message, [CallerMemberName] string caller = "", [CallerLineNumber] int line = 0)
-    {
-        Log.LogInfo($"{message} | {caller}({line})");
-    }
-
     private static void Start() => Task.Run(DimensionManager.StartDimensionAsync);
     private static void Stop() => Task.Run(DimensionManager.StopDimensionAsync);
 
